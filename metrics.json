@@ -1,0 +1,21 @@
+{
+    "media": 0.9970054940039985,
+    "num_eprs": 16,
+    "QMLMetrics": {
+        "Accuracy": 0.6,
+        "Precision": 0.6666666666666666,
+        "Recall": 0.4,
+        "F1": 0.5
+    },
+    "MatrixConfusion": [
+        [
+            8,
+            2
+        ],
+        [
+            6,
+            4
+        ]
+    ],
+    "timestamp": "2025-09-25T12:48:03.691159"
+}
