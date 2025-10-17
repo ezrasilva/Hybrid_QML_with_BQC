@@ -5,6 +5,7 @@ from ..components import *
 from .layers import *
 import random
 import os
+import math
 import csv
 import matplotlib.pyplot as plt
 
@@ -620,34 +621,19 @@ class Network():
         else:
             raise ValueError("Tipo de saída inválido. Escolha entre 'print', 'csv' ou 'variable'.")
 
-    def apply_decoherence_to_all_layers(self, decoherence_factor: float = 0.001):
-        """
-        Aplica decoerência a todos os qubits e EPRs nas camadas da rede que já avançaram nos timeslots.
-
-        Este método ajusta a fidelidade de qubits e pares EPR para simular os efeitos da decoerência
-        quântica em sistemas onde o tempo (timeslot) avança.
-
-        Args:
-            decoherence_factor (float): Fator de decoerência aplicado, que reduz a fidelidade. 
-        """
+    def apply_decoherence_to_all_layers(self, decoherence_factor: float = 0.01): 
         current_timeslot = self.get_timeslot()
 
-        # Aplicar decoerência nos qubits de cada host
         for host_id, host in self.hosts.items():
             for qubit in host.memory:
-                creation_timeslot = self.qubit_timeslots[qubit.qubit_id]['timeslot']
-                if creation_timeslot < current_timeslot:
-                    current_fidelity = qubit.get_current_fidelity()
-                    new_fidelity = current_fidelity - (current_fidelity * decoherence_factor)
-                    qubit.set_current_fidelity(new_fidelity)
-
-        # Aplicar decoerência nos EPRs em todos os canais (arestas da rede)
-        for edge in self.edges:
-            if 'eprs' in self._graph.edges[edge]:
-                for epr in self._graph.edges[edge]['eprs']:
-                    current_fidelity = epr.get_current_fidelity()
-                    new_fidelity = current_fidelity - (current_fidelity * decoherence_factor)
-                    epr.set_fidelity(new_fidelity)
+                if qubit.qubit_id in self.qubit_timeslots:
+                    creation_timeslot = self.qubit_timeslots[qubit.qubit_id]['timeslot']
+                    if creation_timeslot < current_timeslot:
+                        time_passed = current_timeslot - creation_timeslot
+                        current_fidelity = qubit.get_current_fidelity()
+                        
+                        new_fidelity = current_fidelity * math.exp(-decoherence_factor * time_passed)
+                        qubit.set_current_fidelity(max(0.1, new_fidelity)) 
 
     def is_link_busy(self, node, timeslot):
         """
@@ -974,4 +960,3 @@ class Network():
         self.logger.log(f"Resultado da execução: {request['status']}")
 
         return success
-

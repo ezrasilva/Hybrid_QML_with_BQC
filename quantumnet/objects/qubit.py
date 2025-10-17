@@ -6,7 +6,9 @@ class Qubit():
         self.qubit_id = qubit_id
         self._qubit_state = 0  
         self._phase = 1  
-        self._initial_fidelity = initial_fidelity if initial_fidelity is not None else random.uniform(0.9, 1)
+        if initial_fidelity is None:
+            initial_fidelity = random.uniform(0.80, 0.95)  
+        self._initial_fidelity = initial_fidelity
         self._current_fidelity = self._initial_fidelity
 
     def __str__(self):

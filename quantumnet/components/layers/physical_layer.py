@@ -114,19 +114,17 @@ class PhysicalLayer:
         self.logger.debug(f'Qubit {qubit_id} criado com fidelidade inicial {initial_fidelity} e adicionado à memória do Host {host_id}.')
 
 
-    def create_epr_pair(self, fidelity: float = 1.0, increment_timeslot: bool = True, increment_eprs: bool = False):
-        """
-        Cria um par de qubits entrelaçados.
-
-        Returns:
-            Qubit, Qubit: Par de qubits entrelaçados.
-        """
+    def create_epr_pair(self, fidelity: float = None, increment_timeslot: bool = True, increment_eprs: bool = False):
         if increment_timeslot:
             self._network.timeslot() 
 
         if increment_eprs:
             self.used_eprs += 1
             
+        if fidelity is None:
+            base_fidelity = random.uniform(0.80, 0.95)
+            timeslot_factor = max(0.1, 1.0 - (self._network.get_timeslot() * 0.0001))
+            fidelity = base_fidelity * timeslot_factor
             
         epr = Epr(self._count_epr, fidelity)
         self._count_epr += 1

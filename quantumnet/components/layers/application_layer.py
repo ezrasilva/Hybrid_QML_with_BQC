@@ -1,5 +1,6 @@
 import random
 import math
+import numpy as np 
 from quantumnet.components import Host
 from quantumnet.objects import Qubit, Logger
 
@@ -191,6 +192,7 @@ class ApplicationLayer:
             slice_path : list : Caminho da rota (opcional).
             scenario : int : Define o cenário do transporte (1 ou 2).
         """
+        MINIMUM_FIDELITY_THRESHOLD = 0.5
         alice = self._network.get_host(alice_id)
         bob = self._network.get_host(bob_id)
         
@@ -283,6 +285,23 @@ class ApplicationLayer:
         new_qubits = [qubit for qubit in qubits if qubit.qubit_id not in existing_qubits_ids]
         alice.memory.extend(new_qubits)
         self.logger.log(f"Servidor devolveu {len(new_qubits)} qubits para o cliente.")
+        
+        successful_qubits = 0
+        for qubit in qubits:
+            current_fidelity = qubit.get_current_fidelity()
+            self.logger.log(f"Qubit {qubit.qubit_id} retornou com fidelidade: {current_fidelity:.4f}")
+            
+            if current_fidelity >= MINIMUM_FIDELITY_THRESHOLD:
+                successful_qubits += 1
+            else:
+                self.logger.log(f"ALERTA: Qubit {qubit.qubit_id} abaixo do threshold de fidelidade")
+        
+        success_rate = successful_qubits / num_qubits if num_qubits > 0 else 0
+        self.logger.log(f"Taxa de sucesso do protocolo: {success_rate:.2%} ({successful_qubits}/{num_qubits} qubits)")
+        
+        if success_rate <= 0.5:  
+            self.logger.log("Protocolo considerado falho devido à baixa fidelidade")
+            return None
 
         # Log após retorno
         for qubit in qubits:
@@ -302,8 +321,6 @@ class ApplicationLayer:
 
         return qubits
 
-
-
     def generate_random_operation(self):
         """
         Gera uma operação quântica aleatória (X, Y, Z).
@@ -315,13 +332,12 @@ class ApplicationLayer:
         return random.choice(operations)
 
     def apply_operation_from_message(self, qubit, operation):
-        """
-        Aplica a operação quântica especificada em um qubit.
-
-        Args:
-            qubit : Qubit : O qubit ao qual a operação será aplicada.
-            operation : str : Operação (X, Y ou Z) a ser aplicada.
-        """
+        OPERATION_FIDELITY_LOSS = 0.005 
+        
+        current_fidelity = qubit.get_current_fidelity()
+        new_fidelity = max(0.1, current_fidelity * (1 - OPERATION_FIDELITY_LOSS))
+        qubit.set_current_fidelity(new_fidelity)
+        
         if operation == 'X':
             qubit.apply_x()
         elif operation == 'Y':
@@ -511,11 +527,13 @@ class ApplicationLayer:
             # Medição de todos os qubits na rodada atual
             for i, qubit in enumerate(qubits):
                 theta = angles[i]
-                self.logger.log(f"Rodada {round_num + 1}: Cliente {alice_id} instrui o servidor a medir o qubit {qubit.qubit_id} na base {theta}.")
                 
-                # Servidor realiza a medição
-                self._network.timeslot()
                 result = qubit.measure_in_basis(theta)
+                current_fidelity = qubit.get_current_fidelity()
+                if random.random() > current_fidelity:
+                    result = 1 - result
+                    self.logger.log(f"ERRO: Medição invertida devido à baixa fidelidade {current_fidelity:.4f}")
+                
                 round_results.append(result)
                 self.logger.log(f"Servidor {bob_id} mediu o qubit {qubit.qubit_id} na base {theta}, resultado: {result}.")
 
@@ -556,23 +574,24 @@ class ApplicationLayer:
         """
         self.route_fidelities.extend(fidelities)
 
-    def avg_fidelity_on_applicationlayer(self):
+    def avg_fidelity_on_applicationlayer(self, clear_after_read: bool = False) -> float:
         """
-        Calcula a média das fidelidades registradas na camada de aplicação.
-
-        Returns:
-            float: A média das fidelidades registradas ou 0.0 se a lista estiver vazia.
+        Retorna a média das fidelidades registradas pela aplicação.
+        Se clear_after_read=True, limpa o buffer após leitura.
         """
-        # Verifica se há fidelidades registradas.
-        if not self.route_fidelities:
-            print("Nenhuma fidelidade foi registrada.")
+        if not hasattr(self, "route_fidelities") or not self.route_fidelities:
+            self.logger.log("Nenhuma fidelidade foi registrada na camada de aplicação.")
             return 0.0
 
-        # Calcula a média das fidelidades registradas.
-        avg_fidelity = sum(self.route_fidelities) / len(self.route_fidelities)
-        print(f"A média das fidelidades das rotas é: {avg_fidelity:.4f}")
-        return avg_fidelity
-    
+        avg = float(sum(self.route_fidelities) / len(self.route_fidelities))
+        self.logger.log(f"A média das fidelidades das rotas é: {avg:.4f}")
+
+        if clear_after_read:
+            self.route_fidelities = []
+
+        return avg
+
+
     def print_route_fidelities(self):
         """
         Imprime a lista de fidelidades das rotas armazenadas.
@@ -593,3 +612,19 @@ class ApplicationLayer:
             epr_count (int): Total de pares EPR utilizados.
         """
         self.used_eprs += epr_count  # Incrementa o contador de EPRs usados
+
+    def validate_fidelity_accuracy_correlation(self, accuracies, fidelities):
+        """
+        Valida se há correlação entre fidelidade e acurácia
+        """
+        if len(accuracies) != len(fidelities):
+            self.logger.log("ERRO: Listas de acurácia e fidelidade têm tamanhos diferentes")
+            return
+        
+        # Calcular correlação
+        correlation = np.corrcoef(accuracies, fidelities)[0,1] if len(accuracies) > 1 else 0
+        self.logger.log(f"Correlação Fidelidade-Acurácia: {correlation:.4f}")
+        
+        # Log para debug
+        for i, (acc, fid) in enumerate(zip(accuracies, fidelities)):
+            self.logger.log(f"Execução {i}: Acurácia={acc:.4f}, Fidelidade={fid:.4f}")
