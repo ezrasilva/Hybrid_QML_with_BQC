@@ -317,3 +317,13 @@ class PhysicalLayer:
             return True
         self.logger.log(f'Timeslot {self._network.get_timeslot()}: A probabilidade de sucesso do ECHP falhou.')
         return False
+
+    def get_average_epr_fidelity(self):
+        """
+        Retorna a fidelidade média dos EPRs usados na simulação.
+        """
+        if len(self.created_eprs) == 0:
+            return 1.0  # rede ideal se nada foi usado
+
+        fidelities = [epr.fidelity for epr in self.created_eprs]
+        return sum(fidelities) / len(fidelities)

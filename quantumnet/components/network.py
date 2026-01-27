@@ -25,6 +25,7 @@ class Network():
         self._link = LinkLayer(self, self._physical)
         self._network = NetworkLayer(self, self._link, self._physical)
         self._transport = TransportLayer(self, self._network, self._link, self._physical)
+        self.transport_layer = self._transport
         self._application = ApplicationLayer(self, self._transport, self._network, self._link, self._physical)
         # Sobre a execução
         self.logger = Logger.get_instance()

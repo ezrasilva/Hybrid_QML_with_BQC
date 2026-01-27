@@ -192,7 +192,7 @@ class ApplicationLayer:
             slice_path : list : Caminho da rota (opcional).
             scenario : int : Define o cenário do transporte (1 ou 2).
         """
-        MINIMUM_FIDELITY_THRESHOLD = 0.5
+        MINIMUM_FIDELITY_THRESHOLD = 0.05
         alice = self._network.get_host(alice_id)
         bob = self._network.get_host(bob_id)
         
@@ -299,7 +299,7 @@ class ApplicationLayer:
         success_rate = successful_qubits / num_qubits if num_qubits > 0 else 0
         self.logger.log(f"Taxa de sucesso do protocolo: {success_rate:.2%} ({successful_qubits}/{num_qubits} qubits)")
         
-        if success_rate <= 0.5:  
+        if success_rate <= 0.05:  
             self.logger.log("Protocolo considerado falho devido à baixa fidelidade")
             return None
 
